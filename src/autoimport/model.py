@@ -139,9 +139,14 @@ class SourceCode:  # noqa: R090
                 or multiline_import
             ):
                 # Process multiline import statements
-                if "(" in line:
+                if "(" in line or line[-1:] == "\\":
                     multiline_import = True
-                elif ")" in line:
+                elif (
+                    ")" in line
+                    or line[-1:] != "\\"
+                    and self.imports
+                    and self.imports[-1][-1:] == "\\"
+                ):
                     multiline_import = False
 
                 if try_line:
@@ -249,9 +254,14 @@ class SourceCode:  # noqa: R090
                     continue
 
                 # Process multiline import statements
-                if "(" in line:
+                if "(" in line or line[-1:] == "\\":
                     multiline_import = True
-                elif ")" in line:
+                elif (
+                    ")" in line
+                    or line[-1:] != "\\"
+                    and self.imports
+                    and self.imports[-1][-1:] == "\\"
+                ):
                     multiline_import = False
 
                 code_lines_to_remove.append(line)
@@ -439,7 +449,7 @@ class SourceCode:  # noqa: R090
                 self.imports.remove(line)
                 return
             # If it shares the line with other objects, just remove the unused one.
-            if re.match(rf"from {package_name} import .*?{object_name}", line):
+            if re.match(rf"from {package_name} import .*?{object_name}.*[^\\]?$", line):
                 # fmt: off
                 # Format is required until there is no more need of the
                 # experimental-string-processing flag of the Black formatter.
@@ -477,6 +487,32 @@ class SourceCode:  # noqa: R090
                         and self.imports[line_number] == ')':
                     self.imports.pop(line_number)
                     self.imports.pop(line_number - 1)
+
+                return
+            elif re.match(
+                fr"from {package_name} import .*\\$",
+                line,
+            ):
+                line_number = self.imports.index(line)
+                # Remove the object name from the multiline imports
+                while line_number < len(self.imports):
+                    new_imports, subs = re.subn(fr"(, )?\b{object_name}\b(?(1)|(, )?)", "", self.imports[line_number])
+                    if subs:
+                        if re.match(r"^\s*$", new_imports):
+                            self.imports.pop(line_number)
+
+                            line_number -= 1
+                            self.imports[line_number] = re.sub(r",? \\$", "", self.imports[line_number])
+                        else:
+                            self.imports[line_number] = new_imports
+
+                    if self.imports[line_number][-1:] != "\\":
+                        break
+                    line_number += 1
+
+                # Remove the whole import if there is no other object loaded
+                if re.match(r"\s*from .* import$", self.imports[line_number]):
+                    self.imports.pop(line_number)
 
                 return
 

@@ -179,6 +179,31 @@ def test_fix_removes_unused_imports_in_multiline_from_statements() -> None:
     assert result == fixed_source
 
 
+def test_fix_removes_unused_imports_in_backslashed_multiline_from_statements() -> None:
+    """
+    Given: A source code with backslashed multiline import from statements.
+    When: fix_code is run
+    Then: Unused import statements are deleted
+    """
+    source = dedent(
+        """\
+        from os import getcwd, \\
+            path
+
+        getcwd()"""
+    )
+    fixed_source = dedent(
+        """\
+        from os import getcwd
+
+        getcwd()"""
+    )
+
+    result = fix_code(source)
+
+    assert result == fixed_source
+
+
 def test_fix_removes_unneeded_imports_in_beginning_of_from_statements() -> None:
     """Remove unused `object_name` in `from package import object_name, other_object`
     statements.
@@ -215,6 +240,58 @@ def test_fix_removes_unneeded_imports_in_middle_of_from_statements() -> None:
     fixed_source = dedent(
         """\
         from os import getcwd, mkdir
+
+        getcwd()
+        mkdir()"""
+    )
+
+    result = fix_code(source)
+
+    assert result == fixed_source
+
+
+def test_fix_removes_unneeded_imports_in_beginning_of_backslashed_multiline_from_statements() -> None:
+    """Remove unused `object_name` in
+    `from package import object_name, \
+        other_object, other_used_object` statements.
+    """
+    source = dedent(
+        """\
+        from os import getcwd, \\
+            mkdir
+
+        mkdir()"""
+    )
+    fixed_source = dedent(
+        """\
+        from os import \\
+            mkdir
+
+        mkdir()"""
+    )
+
+    result = fix_code(source)
+
+    assert result == fixed_source
+
+
+def test_fix_removes_unneeded_imports_in_middle_of_backslashed_multiline_from_statements() -> None:
+    """Remove unused `object_name` in
+    `from package import other_object, \
+        object_name, other_used_object` statements.
+    """
+    source = dedent(
+        """\
+        from os import getcwd, \\
+            path, mkdir
+
+        getcwd()
+        mkdir()"""
+    )
+    fixed_source = dedent(
+        """\
+        from os import getcwd, \\
+            mkdir
 
         getcwd()
         mkdir()"""
@@ -1050,6 +1127,24 @@ def test_file_with_non_used_multiline_import() -> None:
             bar,
             baz,
         )
+        """
+    )
+
+    result = fix_code(source)
+
+    assert result == "\n"
+
+
+def test_file_with_non_used_backslashed_multiline_import() -> None:
+    """
+    Given: Code with a backslashed multiline from import where no one is used.
+    When: Fix code is run.
+    Then: The unused import line is removed
+    """
+    source = dedent(
+        """\
+        from foo import bar, \\
+            baz
         """
     )
 
